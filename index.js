@@ -1,40 +1,41 @@
-import express , {json, Request, Response} from "express";
-import cors from "cors";
-import dotenv from "dotenv"
-import cookieParser from "cookie-parser";
-import {dirname, join} from "path"
-import { fileURLToPath } from "url";
-import { User } from "./src/user.entity";
-import { myDataSource } from "./src/app-data-source";
+import express from "express";
+import { User } from "./models/user.model.js";
+import bodyParser from "body-parser";
 
-myDataSource
-    .initialize()
-    .then(() => {
-        console.log("Data Source has been initialized!")
-    })
-    .catch((err) => {
-        console.error("Error during Data Source initialization:", err)
-    })
-
-
-dotenv.config()
-
-const __dirname = dirname(fileURLToPath(import.meta.url))
 
 const app = express()
 const PORT = process.env.PORT || 5000
-const corsOptions = {credential:true, origin: process.env || "*"}
+//app.use(json())
 
-app.use(cors(corsOptions))
-app.use(json())
-app.use(cookieParser())
+app.use("/", express.static("public"))
 
-app.use("/", express.static(join(__dirname, "public")))
+// parse application/x-www-form-urlencoded
+app.use(bodyParser.urlencoded({ extended: false }))
 
-app.get("/users", async function (req, res) {
-    const users = await myDataSource.getRepository(User).find({where: id})
-    res.json(users)
+// parse application/json
+app.use(bodyParser.json())
+
+app.get('/users', async function(req,res){
+    const users = await User.findAll();
+    return {
+        status: true,
+        result: users
+    }
+})
+
+app.post("/users", async function (req, res) {
+    const user = await User.create({
+        firstName: req.body.firstName,
+        lastName: req.body.lastName,
+        email: req.body.email,
+        password: req.body.password
+    });
+    res.json({
+        status: true,
+        result: user
+    })
 })
 
 
 app.listen(PORT, () => console.log(`Listening on ${PORT}`))
+
