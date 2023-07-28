@@ -1,59 +1,49 @@
+import { DataTypes, Model } from "sequelize";
+import { DBConnection } from "../config.js";
 import bcrypt from "bcrypt";
-import jwt from "jsonwebtoken";
-import { UserModel } from "./path/to/your/UserModel.js";
 
-// Function to hash the password before saving it to the database
-const hashPassword = (password) => {
-  return bcrypt.hashSync(password, 10);
-};
+export class User extends Model {
+  // Add a method to compare passwords during authentication
+  comparePassword = async (password) => {
+    return bcrypt.compare(password, this.password);
+  };
+}
 
-// Function to create a new user and save it to the database
-export const createUser = async (firstName, lastName, email, password) => {
-  const hashedPassword = hashPassword(password);
-
-  try {
-    const user = await UserModel.create({
-      firstName,
-      lastName,
-      email,
-      password: hashedPassword,
-    });
-    return user;
-  } catch (err) {
-    throw new Error("Error creating user");
+User.init(
+  {
+    id: {
+      type: DataTypes.INTEGER,
+      autoIncrement: true,
+      primaryKey: true,
+    },
+    firstName: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
+    lastName: {
+      type: DataTypes.STRING,
+    },
+    email: {
+      type: DataTypes.STRING,
+    },
+    password: {
+      type: DataTypes.STRING,
+      // Add a setter to hash the password before saving
+      set(value) {
+        const hashedPassword = bcrypt.hashSync(value, 10);
+        this.setDataValue("password", hashedPassword);
+      },
+    },
+  },
+  {
+    sequelize: DBConnection,
+    modelName: "users",
   }
-};
+);
 
-// Function to authenticate a user and generate a JWT token
-export const authenticateUser = async (email, password) => {
-  try {
-    const user = await UserModel.findOne({ where: { email } });
+(async () => {
+  await DBConnection.sync({ force: true });
+})();
 
-    if (!user) {
-      throw new Error("User not found");
-    }
+export const UserModel = new User();
 
-    const isPasswordMatch = await bcrypt.compare(password, user.password);
-
-    if (!isPasswordMatch) {
-      throw new Error("Invalid password");
-    }
-
-    // Generate a JWT token and return it
-    const token = jwt.sign({ userId: user.id }, jwtSecretKey, { expiresIn: "1h" });
-    return token;
-  } catch (err) {
-    throw new Error("Authentication failed");
-  }
-};
-
-// Function to verify a JWT token and return the user
-export const verifyToken = (token) => {
-  try {
-    const decoded = jwt.verify(token, jwtSecretKey);
-    const userId = decoded.userId;
-    return UserModel.findByPk(userId);
-  } catch (err) {
-    throw new Error("Invalid token");
-  }
-};
